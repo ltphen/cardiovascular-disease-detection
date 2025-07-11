@@ -39,8 +39,8 @@ Why this dataset? It's an excellent resource because it's large (over 21,000 ECG
 
 1. Clone the repository:
 ```bash
-git clone <your-repo-link>
-cd <your-repo-name>
+git clone https://github.com/ltphen/cardiovascular-disease-detection
+cd cardiovascular-disease-detection
 ```
 
 2. Create a virtual environment (recommended):
