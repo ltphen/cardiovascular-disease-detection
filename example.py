@@ -2,7 +2,8 @@ import os
 import numpy as np
 from src.data_processing import load_ptbxl_data
 from src.feature_extraction import extract_features
-from src.models import train_cnn_model, train_classical_model, evaluate_model
+from src.models import train_cnn_model, train_cnn_lstm_model, train_cnn_lstm_attention_model, train_classical_model, evaluate_model
+from src.augmentation import augment_dataset
 from sklearn.metrics import roc_auc_score
 
 def main():
@@ -14,20 +15,55 @@ def main():
     )
     num_classes = y_train.shape[1]
 
+    # Augment training data to improve generalization
+    print("\nApplying signal augmentations to training set...")
+    X_aug, y_aug = augment_dataset(X_train, y_train)
+    X_train_full = np.concatenate([X_train, X_aug], axis=0)
+    y_train_full = np.concatenate([y_train, y_aug], axis=0)
+
+    # Shuffle combined training set
+    perm = np.random.permutation(X_train_full.shape[0])
+    X_train_full = X_train_full[perm]
+    y_train_full = y_train_full[perm]
+
     # 2. Train CNN model
     print("\nTraining CNN model...")
     cnn_model, cnn_history = train_cnn_model(
-        X_train, y_train,
+        X_train_full, y_train_full,
         X_val, y_val,
         num_classes=num_classes,
         batch_size=32,
         epochs=50,
         patience=10  # Increased patience for larger dataset
     )
-    
+
+    # 2b. Train CNN + LSTM hybrid model
+    print("\nTraining CNN-LSTM hybrid model...")
+    hybrid_model, hybrid_history = train_cnn_lstm_model(
+        X_train_full, y_train_full,
+        X_val, y_val,
+        num_classes=num_classes,
+        batch_size=32,
+        epochs=50,
+        patience=10,
+        lstm_units=64
+    )
+
+    # 2c. Train CNN + LSTM + Attention model
+    print("\nTraining CNN-LSTM-Attention model...")
+    attn_model, attn_history = train_cnn_lstm_attention_model(
+        X_train_full, y_train_full,
+        X_val, y_val,
+        num_classes=num_classes,
+        batch_size=32,
+        epochs=50,
+        patience=10,
+        lstm_units=64
+    )
+
     # 3. Train classical ML model
     print("\nExtracting features for classical ML...")
-    X_train_feat = extract_features(X_train, fs=100)
+    X_train_feat = extract_features(X_train_full, fs=100)
     X_val_feat = extract_features(X_val, fs=100)
     X_test_feat = extract_features(X_test, fs=100)
     
@@ -48,6 +84,18 @@ def main():
     cnn_auc = roc_auc_score(y_test, y_pred_cnn, average='macro')
     print(f"CNN Test Macro AUC: {cnn_auc:.4f}")
 
+    # Evaluate Hybrid
+    print("\nEvaluating CNN-LSTM hybrid model...")
+    y_pred_hybrid = hybrid_model.predict(X_test)
+    hybrid_auc = roc_auc_score(y_test, y_pred_hybrid, average='macro')
+    print(f"Hybrid Test Macro AUC: {hybrid_auc:.4f}")
+
+    # Evaluate Attention model
+    print("\nEvaluating CNN-LSTM-Attention model...")
+    y_pred_attn = attn_model.predict(X_test)
+    attn_auc = roc_auc_score(y_test, y_pred_attn, average='macro')
+    print(f"Attention Test Macro AUC: {attn_auc:.4f}")
+
     # Evaluate Random Forest
     print("\nEvaluating Random Forest model...")
     X_test_feat_scaled = scaler.transform(X_test_feat)
@@ -58,12 +106,14 @@ def main():
     print(f"RF Test Macro AUC:  {rf_auc:.4f}")
 
     print("\n--- Detailed Per-Class AUC ---")
-    print(f"{'Class':<10} | {'CNN AUC':<10} | {'RF AUC':<10}")
-    print("-" * 35)
+    print(f"{'Class':<10} | {'CNN AUC':<10} | {'Hybrid AUC':<12} | {'Attn AUC':<10} | {'RF AUC':<10}")
+    print("-" * 70)
     for i, label in enumerate(label_names):
         cnn_class_auc = roc_auc_score(y_test[:, i], y_pred_cnn[:, i])
+        hybrid_class_auc = roc_auc_score(y_test[:, i], y_pred_hybrid[:, i])
+        attn_class_auc = roc_auc_score(y_test[:, i], y_pred_attn[:, i])
         rf_class_auc = roc_auc_score(y_test[:, i], y_pred_rf_formatted[:, i])
-        print(f"{label:<10} | {cnn_class_auc:<10.4f} | {rf_class_auc:<10.4f}")
+        print(f"{label:<10} | {cnn_class_auc:<10.4f} | {hybrid_class_auc:<12.4f} | {attn_class_auc:<10.4f} | {rf_class_auc:<10.4f}")
 
 if __name__ == "__main__":
     main() 
