@@ -3,6 +3,14 @@ import numpy as np
 import wfdb
 import os
 from ast import literal_eval # To safely evaluate the string representation of a dictionary
+import pywt
+
+def wavelet_denoise(signal, wavelet='db6', level=1):
+    coeffs = pywt.wavedec(signal, wavelet, level=level)
+    sigma = np.median(np.abs(coeffs[-level])) / 0.6745
+    uthresh = sigma * np.sqrt(2 * np.log(len(signal)))
+    coeffs[1:] = [pywt.threshold(i, value=uthresh, mode='soft') for i in coeffs[1:]]
+    return pywt.waverec(coeffs, wavelet)[:len(signal)]
 
 def load_ptbxl_data(root_dir: str, sampling_frequency: int = 100):
     """
@@ -70,6 +78,7 @@ def load_ptbxl_data(root_dir: str, sampling_frequency: int = 100):
         
         # Using lead II (index 1) as an example
         signal = record.p_signal[:, 1]
+        signal = wavelet_denoise(signal)  # Apply wavelet denoising
         
         # Z-score normalization
         signal = (signal - np.mean(signal)) / np.std(signal)
