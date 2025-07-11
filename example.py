@@ -3,6 +3,7 @@ import numpy as np
 from src.data_processing import load_ptbxl_data
 from src.feature_extraction import extract_features
 from src.models import train_cnn_model, train_cnn_lstm_model, train_cnn_lstm_attention_model, train_classical_model, evaluate_model
+from src.augmentation import augment_dataset
 from sklearn.metrics import roc_auc_score
 
 def main():
@@ -14,10 +15,21 @@ def main():
     )
     num_classes = y_train.shape[1]
 
+    # Augment training data to improve generalization
+    print("\nApplying signal augmentations to training set...")
+    X_aug, y_aug = augment_dataset(X_train, y_train)
+    X_train_full = np.concatenate([X_train, X_aug], axis=0)
+    y_train_full = np.concatenate([y_train, y_aug], axis=0)
+
+    # Shuffle combined training set
+    perm = np.random.permutation(X_train_full.shape[0])
+    X_train_full = X_train_full[perm]
+    y_train_full = y_train_full[perm]
+
     # 2. Train CNN model
     print("\nTraining CNN model...")
     cnn_model, cnn_history = train_cnn_model(
-        X_train, y_train,
+        X_train_full, y_train_full,
         X_val, y_val,
         num_classes=num_classes,
         batch_size=32,
@@ -28,7 +40,7 @@ def main():
     # 2b. Train CNN + LSTM hybrid model
     print("\nTraining CNN-LSTM hybrid model...")
     hybrid_model, hybrid_history = train_cnn_lstm_model(
-        X_train, y_train,
+        X_train_full, y_train_full,
         X_val, y_val,
         num_classes=num_classes,
         batch_size=32,
@@ -40,7 +52,7 @@ def main():
     # 2c. Train CNN + LSTM + Attention model
     print("\nTraining CNN-LSTM-Attention model...")
     attn_model, attn_history = train_cnn_lstm_attention_model(
-        X_train, y_train,
+        X_train_full, y_train_full,
         X_val, y_val,
         num_classes=num_classes,
         batch_size=32,
@@ -51,7 +63,7 @@ def main():
 
     # 3. Train classical ML model
     print("\nExtracting features for classical ML...")
-    X_train_feat = extract_features(X_train, fs=100)
+    X_train_feat = extract_features(X_train_full, fs=100)
     X_val_feat = extract_features(X_val, fs=100)
     X_test_feat = extract_features(X_test, fs=100)
     
