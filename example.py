@@ -83,18 +83,24 @@ def main():
     y_pred_cnn = cnn_model.predict(X_test)
     cnn_auc = roc_auc_score(y_test, y_pred_cnn, average='macro')
     print(f"CNN Test Macro AUC: {cnn_auc:.4f}")
+    print("Evaluating CNN model (full metrics)...")
+    evaluate_model(cnn_model, X_test, y_test)
 
     # Evaluate Hybrid
     print("\nEvaluating CNN-LSTM hybrid model...")
     y_pred_hybrid = hybrid_model.predict(X_test)
     hybrid_auc = roc_auc_score(y_test, y_pred_hybrid, average='macro')
     print(f"Hybrid Test Macro AUC: {hybrid_auc:.4f}")
+    print("Evaluating CNN-LSTM hybrid model (full metrics)...")
+    evaluate_model(hybrid_model, X_test, y_test)
 
     # Evaluate Attention model
     print("\nEvaluating CNN-LSTM-Attention model...")
     y_pred_attn = attn_model.predict(X_test)
     attn_auc = roc_auc_score(y_test, y_pred_attn, average='macro')
     print(f"Attention Test Macro AUC: {attn_auc:.4f}")
+    print("Evaluating CNN-LSTM-Attention model (full metrics)...")
+    evaluate_model(attn_model, X_test, y_test)
 
     # Evaluate Random Forest
     print("\nEvaluating Random Forest model...")

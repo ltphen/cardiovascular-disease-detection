@@ -5,6 +5,7 @@ from tensorflow.keras import regularizers
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 from typing import Tuple, Optional
+from sklearn.metrics import f1_score
 
 def build_cnn_model(
     input_shape: Tuple[int, int],
@@ -50,6 +51,8 @@ def build_cnn_model(
         loss="binary_crossentropy",
         metrics=[
             "binary_accuracy",
+            tf.keras.metrics.Precision(),
+            tf.keras.metrics.Recall(),
             tf.keras.metrics.AUC(name='auc', multi_label=True)
         ]
     )
@@ -404,8 +407,15 @@ def evaluate_model(
         X_test = scaler.transform(X_test)
         
     if isinstance(model, tf.keras.Model):
-        test_loss, test_acc = model.evaluate(X_test, y_test, verbose=0)
+        test_loss, test_acc, test_precision, test_recall, test_auc = model.evaluate(X_test, y_test, verbose=0)
         print(f"Test accuracy: {test_acc:.3f}")
+        print(f"Test precision: {test_precision:.3f}")
+        print(f"Test recall: {test_recall:.3f}")
+        print(f"Test AUC: {test_auc:.3f}")
+        # F1-score (macro)
+        y_pred = (model.predict(X_test) > 0.5).astype(int)
+        f1 = f1_score(y_test, y_pred, average='macro')
+        print(f"F1-score (macro): {f1:.3f}")
         return test_acc
     else:
         test_acc = model.score(X_test, y_test)
